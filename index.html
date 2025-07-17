@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>RIMA Diagnosis Exam</title>
+</head>
+<body>
+  <h1>🩺 RIMA Patient Simulator</h1>
+  <div>
+    {% for line in chat %}
+      <p>{{ line }}</p>
+    {% endfor %}
+  </div>
+
+  {% if questions_left > 0 %}
+  <form method="POST">
+    <input name="question" placeholder="Ask a question..." required>
+    <button type="submit">Ask</button>
+  </form>
+  <p>Questions left: {{ questions_left }}</p>
+  {% else %}
+  <form action="/submit-diagnosis" method="POST">
+    <input name="diagnosis" placeholder="Your diagnosis..." required>
+    <button type="submit">Submit Diagnosis</button>
+  </form>
+  {% endif %}
+</body>
+</html>
