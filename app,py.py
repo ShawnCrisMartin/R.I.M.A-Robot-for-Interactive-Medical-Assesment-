@@ -1,85 +1,44 @@
-from flask import Flask, request, jsonify, render_template
-from transformers import AutoModelForCausalLM, AutoTokenizer
-import torch
-import sqlite3
+from flask import Flask, render_template, request, session, redirect, url_for
+from model_backend import initialize_patient, get_patient_reply
 
 app = Flask(__name__)
+app.secret_key = "secret123"
 
-# Load model/tokenizer once at startup
-model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
-
-# Connect to DB once
-conn = sqlite3.connect("patients.db", check_same_thread=False)
-cursor = conn.cursor()
-
-# Pick random disease and symptoms once at startup
-cursor.execute("SELECT id, name, presenting_complaint FROM diseases ORDER BY RANDOM() LIMIT 1")
-disease_id, disease_name, presenting_complaint = cursor.fetchone()
-
-cursor.execute("SELECT symptom, description FROM symptoms WHERE disease_id = ?", (disease_id,))
-patient_symptoms = {symptom: desc for symptom, desc in cursor.fetchall()}
-
-common_symptoms = ["fever", "cough", "headache", "chest pain", "shortness of breath", "fatigue", "nausea", "dizziness", "abdominal pain"]
-
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def index():
-    return render_template("index.html", disease_name=disease_name, presenting_complaint=presenting_complaint)
+    if "questions_left" not in session:
+        disease_name, presenting_complaint, patient_symptoms = initialize_patient()
+        session["disease_name"] = disease_name
+        session["presenting_complaint"] = presenting_complaint
+        session["patient_symptoms"] = patient_symptoms
+        session["chat"] = [
+            f"Patient: Hi, I'm a patient with {disease_name}.",
+            f"Patient: {presenting_complaint}"
+        ]
+        session["questions_left"] = 10
 
-@app.route("/chat", methods=["POST"])
-def chat():
-    doctor_question = request.json.get("question", "").strip()
+    if request.method == "POST":
+        doctor_question = request.form["question"]
+        if session["questions_left"] > 0:
+            session["questions_left"] -= 1
+            reply = get_patient_reply(
+                session["disease_name"],
+                session["presenting_complaint"],
+                session["patient_symptoms"],
+                doctor_question
+            )
+            session["chat"].append(f"Doctor: {doctor_question}")
+            session["chat"].append(f"Patient: {reply}")
 
-    if doctor_question.lower() == "exit":
-        return jsonify(response="Thank you, doctor.")
+    return render_template("index.html", chat=session["chat"], questions_left=session["questions_left"])
 
-    matched_symptom = None
-    mentioned_symptom = None
-
-    for symptom in patient_symptoms:
-        if symptom.lower() in doctor_question.lower():
-            matched_symptom = symptom
-            break
-
-    for word in common_symptoms:
-        if word in doctor_question.lower():
-            mentioned_symptom = word
-            break
-
-    if matched_symptom:
-        response = patient_symptoms[matched_symptom]
-    elif mentioned_symptom:
-        response = "No, I haven't experienced that."
-    else:
-        prompt = f"""
-You are a patient diagnosed with {disease_name}.
-Your presenting complaint is: "{presenting_complaint}"
-Your symptoms are: {', '.join(patient_symptoms.keys())}
-
-If the doctor's question is unrelated, reply naturally like "I'm not sure." or "No, nothing like that."
-
-Doctor: {doctor_question}
-Patient:"""
-
-        inputs = tokenizer(prompt, return_tensors="pt")
-
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=50,
-            repetition_penalty=1.2,
-            do_sample=True,
-            temperature=0.7
-        )
-
-        reply = tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-        if "Patient:" in reply:
-            response = reply.split("Patient:")[-1].strip().split("\n")[0]
-        else:
-            response = reply.strip()
-
-    return jsonify(response=response)
+@app.route("/submit-diagnosis", methods=["POST"])
+def submit_diagnosis():
+    guess = request.form["diagnosis"]
+    correct = session["disease_name"].lower()
+    result = "pass" if guess.lower() == correct else "fail"
+    session.clear()
+    return f"<h2>You {result.upper()}ED!</h2><a href='/'>Try Again</a>"
 
 if __name__ == "__main__":
     app.run(debug=True)
