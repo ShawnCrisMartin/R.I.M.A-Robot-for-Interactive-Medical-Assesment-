@@ -5,7 +5,7 @@ import random
 
 model_name = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name).to('cuda')
 
 def initialize_patient():
     conn = sqlite3.connect("patients.db")
@@ -43,10 +43,12 @@ Doctor: {doctor_question}
 Patient:"""
 
     inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = {k: v.to('cuda') for k, v in inputs.items()}
+
 
     outputs = model.generate(
         **inputs,
-        max_new_tokens=50,
+        max_new_tokens=150,
         repetition_penalty=1.2,
         do_sample=True,
         temperature=0.7
