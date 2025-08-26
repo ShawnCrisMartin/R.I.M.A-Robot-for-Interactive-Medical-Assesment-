@@ -1,49 +1,30 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>RIMA Diagnosis Exam</title>
-  <style>
-    body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
-    .session-info { background: #f0f0f0; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 0.9em; }
-    .chat-message { margin: 10px 0; padding: 10px; border-radius: 5px; }
-    .patient-message { background: #e3f2fd; }
-    .doctor-message { background: #f3e5f5; }
-    .form-container { margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px; }
-    input[type="text"] { width: 70%; padding: 8px; margin-right: 10px; }
-    button { padding: 8px 15px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
-    button:hover { background: #0056b3; }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
   <h1>🩺 RIMA Patient Simulator</h1>
-  <div class="session-info">
-    <strong>Session ID:</strong> {{ session_id[:8] }}...
-  </div>
+
   <div>
     {% for line in chat %}
-      {% if line.startswith('Patient:') %}
-        <div class="chat-message patient-message">{{ line }}</div>
-      {% elif line.startswith('Doctor:') %}
-        <div class="chat-message doctor-message">{{ line }}</div>
-      {% else %}
-        <div class="chat-message">{{ line }}</div>
-      {% endif %}
+      <p>{{ line }}</p>
     {% endfor %}
   </div>
 
-  <div class="form-container">
   {% if questions_left > 0 %}
-  <form method="POST" action="/session/{{ session_id }}">
-    <input name="question" type="text" placeholder="Ask a question..." required>
-    <button type="submit">Ask</button>
-  </form>
-  <p><strong>Questions left:</strong> {{ questions_left }}</p>
+    <form method="POST">
+      <input name="question" placeholder="Ask a question..." required>
+      <button type="submit">Ask</button>
+    </form>
+    <p>Questions left: {{ questions_left }}</p>
   {% else %}
-  <form action="/submit-diagnosis/{{ session_id }}" method="POST">
-    <input name="diagnosis" type="text" placeholder="Your diagnosis..." required>
-    <button type="submit">Submit Diagnosis</button>
-  </form>
+    <form action="/submit-diagnosis" method="POST">
+      <input name="diagnosis" placeholder="Your diagnosis..." required>
+      <button type="submit">Submit Diagnosis</button>
+    </form>
   {% endif %}
-  </div>
 </body>
 </html>
