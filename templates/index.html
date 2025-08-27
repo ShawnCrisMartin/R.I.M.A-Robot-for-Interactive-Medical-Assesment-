@@ -15,13 +15,13 @@
   </div>
 
   {% if questions_left > 0 %}
-    <form method="POST">
+    <form method="POST" action="/session/{{ session_id }}">
       <input name="question" placeholder="Ask a question..." required>
       <button type="submit">Ask</button>
     </form>
     <p>Questions left: {{ questions_left }}</p>
   {% else %}
-    <form action="/submit-diagnosis" method="POST">
+    <form action="/submit-diagnosis/{{ session_id }}" method="POST">
       <input name="diagnosis" placeholder="Your diagnosis..." required>
       <button type="submit">Submit Diagnosis</button>
     </form>
